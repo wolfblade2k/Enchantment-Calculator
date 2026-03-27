@@ -341,7 +341,10 @@ export default function App() {
       <div className="hero">
         <div className="hero-copy">
           <span className="eyebrow">Minecraft Enchantment Calculator</span>
-          <h1>WiseHosting-style UI with full enchants and anvil order</h1>
+          <h1>Advanced Enchantment Calculator with Full Enchants & Anvil Order</h1>
+		  <p style={{ opacity: 0.7, fontSize: "0.9rem" }}>
+  Inspired by WiseHosting
+</p>
           <p>
             Plan your build, check conflicts, then follow the recommended merge order
             to keep your estimated anvil cost lower.
