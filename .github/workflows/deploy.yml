@@ -27,19 +27,10 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Show files
-        run: ls -la
+      - name: Install dependencies
+        run: npm install
 
-      - name: Show package.json
-        run: cat package.json
-
-      - name: Clean install
-        run: npm ci --include=dev
-
-      - name: Check vite binary
-        run: ls -la node_modules/.bin
-
-      - name: Check vite version
+      - name: Check vite
         run: npx vite --version
 
       - name: Build
