@@ -25,13 +25,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
-      - name: Install dependencies
+      - name: Delete lockfile (force fresh install)
+        run: rm -f package-lock.json
+
+      - name: Install everything fresh
         run: npm install
-
-      - name: Check vite
-        run: npx vite --version
 
       - name: Build
         run: npx vite build
