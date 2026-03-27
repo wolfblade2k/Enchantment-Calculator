@@ -10,6 +10,7 @@ A GitHub-ready React + Vite project that includes:
 - Charges refill calculator
 - Optional success / destroy chance calculator
 - Clean browser GUI
+- https://wolfblade2k.github.io/Enchantment-Calculator/
 
 ## Quick start
 
