@@ -18,7 +18,11 @@ html, body, #root {
 }
 
 body {
-  background: transparent;
+  background:
+    radial-gradient(rgba(123, 97, 255, 0.16) 1px, transparent 1px),
+    radial-gradient(circle at top left, rgba(29, 78, 216, 0.22), transparent 28%),
+    linear-gradient(180deg, #110f2a 0%, #0a1020 100%);
+  background-size: 12px 12px, auto, auto;
 }
 
 button, input, select {
@@ -26,7 +30,7 @@ button, input, select {
 }
 
 .page-shell {
-  max-width: 1260px;
+  max-width: 1320px;
   margin: 0 auto;
   padding: 40px 20px 56px;
 }
@@ -43,7 +47,7 @@ button, input, select {
 .hero-card,
 .panel {
   border: 1px solid rgba(128, 162, 255, 0.14);
-  background: linear-gradient(180deg, rgba(10, 18, 38, 0.92), rgba(8, 15, 30, 0.92));
+  background: linear-gradient(180deg, rgba(15, 18, 46, 0.94), rgba(9, 13, 34, 0.94));
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
   border-radius: 24px;
 }
@@ -54,7 +58,7 @@ button, input, select {
 
 .eyebrow,
 .panel-kicker {
-  color: #55d2ff;
+  color: #8cd8ff;
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -65,13 +69,13 @@ button, input, select {
   margin: 12px 0 12px;
   font-size: clamp(2rem, 4vw, 3.4rem);
   line-height: 1.02;
-  max-width: 12ch;
+  max-width: 13ch;
 }
 
 .hero-copy p {
   margin: 0;
   max-width: 62ch;
-  color: #aab8d5;
+  color: #b4bce3;
   line-height: 1.7;
 }
 
@@ -85,9 +89,9 @@ button, input, select {
 .hero-badges span {
   padding: 10px 14px;
   border-radius: 999px;
-  background: rgba(79, 172, 254, 0.09);
-  border: 1px solid rgba(79, 172, 254, 0.18);
-  color: #dbf4ff;
+  background: rgba(119, 97, 255, 0.12);
+  border: 1px solid rgba(119, 97, 255, 0.24);
+  color: #efe8ff;
   font-size: 0.92rem;
 }
 
@@ -111,7 +115,7 @@ button, input, select {
 }
 
 .stat span {
-  color: #9eb1d6;
+  color: #aeb7e0;
   font-size: 0.95rem;
 }
 
@@ -119,6 +123,7 @@ button, input, select {
   display: grid;
   grid-template-columns: 1.05fr 0.95fr;
   gap: 24px;
+  margin-bottom: 24px;
 }
 
 .panel {
@@ -153,13 +158,13 @@ button, input, select {
   border-radius: 14px;
   border: 1px solid rgba(128, 162, 255, 0.14);
   background: rgba(255, 255, 255, 0.03);
-  color: #d9e5ff;
+  color: #e4e8ff;
   cursor: pointer;
 }
 
 .item-tab.active {
-  background: linear-gradient(90deg, rgba(38, 121, 255, 0.22), rgba(16, 185, 129, 0.18));
-  border-color: rgba(85, 210, 255, 0.45);
+  background: linear-gradient(90deg, rgba(92, 76, 255, 0.28), rgba(33, 167, 255, 0.18));
+  border-color: rgba(153, 113, 255, 0.45);
   color: white;
 }
 
@@ -172,7 +177,7 @@ button, input, select {
   border: 1px solid rgba(128, 162, 255, 0.14);
   background: rgba(255, 255, 255, 0.03);
   margin-bottom: 16px;
-  color: #7fb5ff;
+  color: #9ab5ff;
 }
 
 .search-box input {
@@ -200,9 +205,9 @@ button, input, select {
 }
 
 .enchant-card.active {
-  background: linear-gradient(180deg, rgba(11, 48, 97, 0.85), rgba(7, 28, 58, 0.88));
-  border-color: rgba(82, 207, 255, 0.42);
-  box-shadow: inset 0 0 0 1px rgba(0, 255, 195, 0.06);
+  background: linear-gradient(180deg, rgba(42, 32, 94, 0.94), rgba(27, 19, 63, 0.94));
+  border-color: rgba(151, 114, 255, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
 .enchant-top,
@@ -223,8 +228,9 @@ button, input, select {
 .selection-subtitle,
 .footer-note,
 .empty-state,
-.status-card li {
-  color: #aab8d5;
+.status-card li,
+.book-label {
+  color: #b4bce3;
   font-size: 0.92rem;
 }
 
@@ -242,9 +248,9 @@ button, input, select {
 }
 
 .tag.excellent {
-  background: rgba(34, 197, 94, 0.1);
-  border-color: rgba(34, 197, 94, 0.28);
-  color: #ccffe0;
+  background: rgba(140, 86, 255, 0.12);
+  border-color: rgba(140, 86, 255, 0.28);
+  color: #ead7ff;
 }
 
 .summary-grid {
@@ -266,7 +272,7 @@ button, input, select {
 
 .summary-card span {
   display: block;
-  color: #8da5cf;
+  color: #98a7d3;
   margin-bottom: 8px;
 }
 
@@ -282,7 +288,7 @@ button, input, select {
 .selection-row select {
   border-radius: 12px;
   border: 1px solid rgba(128, 162, 255, 0.18);
-  background: #091424;
+  background: #111533;
   color: white;
   padding: 10px 12px;
 }
@@ -312,29 +318,139 @@ button, input, select {
   padding: 0;
 }
 
+.anvil-panel {
+  padding-bottom: 28px;
+}
+
+.anvil-steps {
+  display: grid;
+  gap: 18px;
+}
+
+.anvil-step {
+  display: grid;
+  grid-template-columns: 44px 1fr 42px 260px;
+  gap: 18px;
+  align-items: center;
+}
+
+.step-number {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: #0f1230;
+  border: 1px solid rgba(151, 114, 255, 0.26);
+  color: #fff;
+  font-weight: 700;
+}
+
+.merge-input {
+  display: grid;
+  grid-template-columns: 1fr 48px 1fr;
+  gap: 14px;
+  align-items: center;
+}
+
+.merge-mid,
+.merge-arrow {
+  display: grid;
+  place-items: center;
+}
+
+.merge-dot {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(126, 91, 255, 0.28);
+  border: 1px solid rgba(155, 124, 255, 0.38);
+  color: #fff;
+}
+
+.book-card {
+  min-height: 110px;
+  border-radius: 20px;
+  border: 1px solid rgba(151, 114, 255, 0.22);
+  background: linear-gradient(180deg, rgba(52, 42, 105, 0.9), rgba(38, 30, 86, 0.9));
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 18px 16px;
+}
+
+.item-card {
+  background: linear-gradient(180deg, rgba(38, 37, 77, 0.95), rgba(26, 24, 57, 0.95));
+}
+
+.output-card {
+  background: linear-gradient(180deg, rgba(56, 46, 116, 0.96), rgba(44, 35, 92, 0.96));
+}
+
+.book-icon {
+  margin-bottom: 8px;
+  color: #f5e6ff;
+}
+
+.book-label {
+  color: #fff;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.merge-output-wrap {
+  display: grid;
+  gap: 8px;
+}
+
+.cost-label {
+  color: #f4f0ff;
+  font-size: 0.95rem;
+  text-align: left;
+}
+
 .footer-note {
   margin-top: 16px;
   line-height: 1.7;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1120px) {
   .hero,
   .tool-grid {
     grid-template-columns: 1fr;
   }
+
+  .anvil-step {
+    grid-template-columns: 44px 1fr;
+  }
+
+  .merge-arrow {
+    display: none;
+  }
+
+  .merge-output-wrap {
+    grid-column: 2;
+  }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 760px) {
   .page-shell {
     padding: 18px 14px 30px;
   }
 
-  .enchant-list {
+  .enchant-list,
+  .summary-grid {
     grid-template-columns: 1fr;
   }
 
-  .summary-grid {
+  .merge-input {
     grid-template-columns: 1fr;
+  }
+
+  .merge-mid {
+    display: none;
   }
 
   .hero-copy,

@@ -11,6 +11,10 @@ import {
   Search,
   CheckCircle2,
   AlertTriangle,
+  Hammer,
+  BookOpen,
+  Plus,
+  ChevronRight,
 } from "lucide-react";
 
 type ItemKey =
@@ -39,6 +43,22 @@ type Enchant = {
   appliesTo: ItemKey[];
   incompatible?: string[];
   kind: "damage" | "utility" | "protection" | "loot" | "mobility" | "curse";
+};
+
+type Picked = { name: string; level: number };
+
+type MergeNode = {
+  label: string;
+  enchants: string[];
+  weight: number;
+};
+
+type MergeStep = {
+  step: number;
+  left: string;
+  right: string;
+  result: string;
+  cost: number;
 };
 
 const ITEMS: { key: ItemKey; label: string; icon: JSX.Element }[] = [
@@ -193,21 +213,80 @@ const ALL: Enchant[] = [
   { name: "Soulbound", source: "ExcellentEnchants", max: 1, appliesTo: ["helmet","chestplate","leggings","boots","elytra","sword","axe","pickaxe","shovel","hoe","bow","crossbow","trident","fishing_rod","mace","shears","shield"], incompatible: ["Curse of Vanishing"], kind: "utility" },
 ];
 
-type Picked = { name: string; level: number };
-
 function roman(value: number) {
   const map = ["", "I", "II", "III", "IV", "V", "VI"];
   return map[value] ?? String(value);
 }
 
-function levelsToCost(picks: Picked[]) {
-  return picks.reduce((sum, pick) => sum + pick.level * 2, 0);
+function estimateWeight(level: number) {
+  return Math.max(1, level);
+}
+
+function buildAnvilOrder(itemLabel: string, picks: Picked[]) {
+  if (picks.length === 0) return { steps: [] as MergeStep[], totalCost: 0, finalBook: "" };
+  if (picks.length === 1) {
+    return {
+      steps: [{
+        step: 1,
+        left: itemLabel,
+        right: `${picks[0].name} ${roman(picks[0].level)}`,
+        result: `${itemLabel} + ${picks[0].name} ${roman(picks[0].level)}`,
+        cost: estimateWeight(picks[0].level),
+      }],
+      totalCost: estimateWeight(picks[0].level),
+      finalBook: `${picks[0].name} ${roman(picks[0].level)}`
+    };
+  }
+
+  const nodes: MergeNode[] = picks.map((pick) => ({
+    label: `${pick.name} ${roman(pick.level)}`,
+    enchants: [pick.name],
+    weight: estimateWeight(pick.level),
+  }));
+
+  const steps: MergeStep[] = [];
+  let localStep = 1;
+
+  while (nodes.length > 1) {
+    nodes.sort((a, b) => a.weight - b.weight || a.label.localeCompare(b.label));
+    const left = nodes.shift()!;
+    const right = nodes.shift()!;
+    const combined: MergeNode = {
+      label: [...left.enchants, ...right.enchants].join(" + "),
+      enchants: [...left.enchants, ...right.enchants],
+      weight: left.weight + right.weight + 1,
+    };
+
+    steps.push({
+      step: localStep++,
+      left: left.label,
+      right: right.label,
+      result: combined.label,
+      cost: combined.weight,
+    });
+
+    nodes.push(combined);
+  }
+
+  const finalBook = nodes[0];
+  steps.push({
+    step: localStep,
+    left: itemLabel,
+    right: finalBook.label,
+    result: `${itemLabel} enchanted`,
+    cost: finalBook.weight,
+  });
+
+  const totalCost = steps.reduce((sum, step) => sum + step.cost, 0);
+  return { steps, totalCost, finalBook: finalBook.label };
 }
 
 export default function App() {
   const [item, setItem] = useState<ItemKey>("sword");
   const [search, setSearch] = useState("");
   const [picked, setPicked] = useState<Picked[]>([]);
+
+  const itemLabel = ITEMS.find((x) => x.key === item)?.label ?? "Item";
 
   const available = useMemo(
     () =>
@@ -240,7 +319,7 @@ export default function App() {
     return list;
   }, [pickedDetailed]);
 
-  const totalCost = levelsToCost(picked);
+  const anvilPlan = useMemo(() => buildAnvilOrder(itemLabel, picked), [itemLabel, picked]);
   const totalBooks = picked.length;
 
   function toggleEnchant(name: string, max: number) {
@@ -262,21 +341,21 @@ export default function App() {
       <div className="hero">
         <div className="hero-copy">
           <span className="eyebrow">Minecraft Enchantment Calculator</span>
-          <h1>WiseHosting-inspired UI with the full enchant list</h1>
+          <h1>WiseHosting-style UI with full enchants and anvil order</h1>
           <p>
-            This version restores the larger vanilla and ExcellentEnchants dataset
-            while keeping the same dark hosting-style layout.
+            Plan your build, check conflicts, then follow the recommended merge order
+            to keep your estimated anvil cost lower.
           </p>
           <div className="hero-badges">
             <span>{ALL.length} enchants loaded</span>
-            <span>Vanilla + ExcellentEnchants</span>
             <span>Conflict Checker</span>
+            <span>Anvil Order Planner</span>
           </div>
         </div>
         <div className="hero-card">
           <div className="stat"><strong>{available.length}</strong><span>Available for item</span></div>
           <div className="stat"><strong>{picked.length}</strong><span>Selected enchants</span></div>
-          <div className="stat"><strong>{totalCost}</strong><span>XP estimate</span></div>
+          <div className="stat"><strong>{anvilPlan.totalCost}</strong><span>Estimated total cost</span></div>
         </div>
       </div>
 
@@ -340,7 +419,7 @@ export default function App() {
           <div className="panel-header">
             <div>
               <div className="panel-kicker">Selected build</div>
-              <h2>{ITEMS.find((x) => x.key === item)?.label} setup</h2>
+              <h2>{itemLabel} setup</h2>
             </div>
             <Sparkles size={18} />
           </div>
@@ -351,8 +430,8 @@ export default function App() {
               <strong>{totalBooks}</strong>
             </div>
             <div className="summary-card">
-              <span>XP estimate</span>
-              <strong>{totalCost}</strong>
+              <span>Estimated total cost</span>
+              <strong>{anvilPlan.totalCost}</strong>
             </div>
           </div>
 
@@ -401,13 +480,64 @@ export default function App() {
               </div>
             )}
           </div>
-
-          <div className="footer-note">
-            Full enchant dataset restored. If your server has custom plugin config values,
-            those can still differ from stock defaults.
-          </div>
         </section>
       </div>
+
+      <section className="anvil-panel panel">
+        <div className="panel-header">
+          <div>
+            <div className="panel-kicker">Anvil order</div>
+            <h2>Recommended lowest-cost merge flow</h2>
+          </div>
+          <Hammer size={18} />
+        </div>
+
+        {picked.length === 0 ? (
+          <div className="empty-state">Add some enchantments first, then the anvil order will appear here.</div>
+        ) : (
+          <div className="anvil-steps">
+            {anvilPlan.steps.map((step) => {
+              const finalApply = step.left === itemLabel;
+              return (
+                <div className="anvil-step" key={step.step}>
+                  <div className="step-number">{step.step}</div>
+
+                  <div className="merge-input">
+                    <div className={`book-card ${finalApply ? "item-card" : ""}`}>
+                      <div className="book-icon">{finalApply ? <Shield size={22} /> : <BookOpen size={22} />}</div>
+                      <div className="book-label">{step.left}</div>
+                    </div>
+
+                    <div className="merge-mid">
+                      <div className="merge-dot"><Plus size={14} /></div>
+                    </div>
+
+                    <div className="book-card">
+                      <div className="book-icon"><BookOpen size={22} /></div>
+                      <div className="book-label">{step.right}</div>
+                    </div>
+                  </div>
+
+                  <div className="merge-arrow"><ChevronRight size={18} /></div>
+
+                  <div className="merge-output-wrap">
+                    <div className="cost-label">Cost: {step.cost}</div>
+                    <div className="book-card output-card">
+                      <div className="book-icon">{finalApply ? <Sparkles size={22} /> : <BookOpen size={22} />}</div>
+                      <div className="book-label">{step.result}</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="footer-note">
+          This planner uses a lightweight merge heuristic: it combines the smallest book groups first,
+          which usually lowers total work cost. It is an estimate, not a perfect simulation of every server setup.
+        </div>
+      </section>
     </div>
   );
 }
