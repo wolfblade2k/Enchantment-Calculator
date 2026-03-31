@@ -219,6 +219,89 @@ function roman(value: number) {
   return map[value] ?? String(value);
 }
 
+const CUSTOM_ANVIL_COST: Record<string, number> = {
+  "Auto Reel": 1,
+  "Bane of Netherspawn": 5,
+  "Blast Mining": 2,
+  "Blindness": 3,
+  "Bomber": 2,
+  "Cold Steel": 5,
+  "Confusing Arrows": 1,
+  "Confusion": 6,
+  "Cure": 2,
+  "Curse of Breaking": 6,
+  "Curse of Death": 7,
+  "Curse of Drowned": 7,
+  "Curse of Fragility": 2,
+  "Curse of Mediocrity": 6,
+  "Curse of Misfortune": 1,
+  "Cutter": 7,
+  "Darkness Arrows": 6,
+  "Darkness Cloak": 2,
+  "Decapitator": 3,
+  "Double Catch": 3,
+  "Double Strike": 6,
+  "Dragon Heart": 0,
+  "Dragonfire Arrows": 7,
+  "Electrified Arrows": 7,
+  "Elemental Protection": 7,
+  "Ender Bow": 1,
+  "Exhaust": 4,
+  "Explosive Arrows": 3,
+  "Fire Shield": 1,
+  "Flame Walker": 1,
+  "Flare": 1,
+  "Ghast": 2,
+  "Glass Breaker": 1,
+  "Hardened": 1,
+  "Haste": 3,
+  "Hover": 6,
+  "Ice Aspect": 4,
+  "Ice Shield": 3,
+  "Infernus": 6,
+  "Jumping": 1,
+  "Kamikadze": 4,
+  "Lightweight": 1,
+  "Lingering": 7,
+  "Lucky Miner": 4,
+  "Night Vision": 4,
+  "Nimble": 5,
+  "Paralyze": 3,
+  "Poisoned Arrows": 3,
+  "Rage": 4,
+  "Rebound": 0,
+  "Regrowth": 0,
+  "Replanter": 2,
+  "Restore": 6,
+  "River Master": 3,
+  "Rocket": 5,
+  "Saturation": 5,
+  "Seasoned Angler": 5,
+  "Silk Chest": 5,
+  "Silk Spawner": 1,
+  "Smelter": 1,
+  "Sniper": 6,
+  "Soulbound": 2,
+  "Speed": 3,
+  "Stopping Force": 6,
+  "Survivalist": 5,
+  "Swiper": 7,
+  "Telekinesis": 0,
+  "Temper": 1,
+  "Thrifty": 5,
+  "Thunder": 4,
+  "Treefeller": 0,
+  "Tunnel": 0,
+  "Vampire": 2,
+  "Vampiric Arrows": 6,
+  "Veinminer": 0,
+  "Venom": 7,
+  "Village Defender": 6,
+  "Water Breathing": 6,
+  "Wisdom": 5,
+  "Wither": 0,
+  "Withered Arrows": 6
+};
 const VANILLA_BOOK_MULTIPLIER: Record<string, number> = {
   "Protection": 1,
   "Fire Protection": 1,
@@ -268,11 +351,8 @@ function getBookMultiplier(enchant: Enchant) {
   if (enchant.source === "Vanilla") {
     return VANILLA_BOOK_MULTIPLIER[enchant.name] ?? 2;
   }
-  if (enchant.kind === "curse") return 4;
-  if (enchant.kind === "loot") return 2;
-  if (enchant.kind === "protection") return 2;
-  if (enchant.kind === "mobility") return 2;
-  return 1;
+  const configuredAnvilCost = CUSTOM_ANVIL_COST[enchant.name] ?? 1;
+  return Math.max(1, Math.ceil(configuredAnvilCost / 2));
 }
 
 type EnchantState = Record<string, number>;
@@ -753,7 +833,7 @@ export default function App() {
             <span>Notes about mechanics mode</span>
             <div style={{ color: "#dbe2ff", lineHeight: 1.7 }}>
               Vanilla enchant multipliers use Minecraft wiki values where available. Custom ExcellentEnchants
-              multipliers are estimated so the planner can keep them in the same optimizer.
+              costs now come from your uploaded plugin config AnvilCost values and are converted to book-side cost with a halved-cost rule.
             </div>
             {evaluation.tooExpensive && (
               <div style={{ marginTop: 12, color: "#ffd07f" }}>
