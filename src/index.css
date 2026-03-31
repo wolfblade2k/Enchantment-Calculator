@@ -593,3 +593,26 @@ button, input, select {
   border-color: rgba(248, 113, 113, 0.28);
   background: rgba(127, 29, 29, 0.22);
 }
+
+
+.mode-toggle {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.mode-pill {
+  border: 1px solid rgba(128, 162, 255, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+  color: #e4e8ff;
+  border-radius: 999px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.mode-pill.active {
+  background: linear-gradient(90deg, rgba(92, 76, 255, 0.28), rgba(33, 167, 255, 0.18));
+  border-color: rgba(153, 113, 255, 0.45);
+  color: white;
+}

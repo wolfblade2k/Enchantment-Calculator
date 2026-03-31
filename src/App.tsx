@@ -548,7 +548,7 @@ function greedyBookMerge(picks: Picked[], targetItem: ItemKey) {
   return { totalCost, node: nodes[0] };
 }
 
-function evaluateBuild(picks: Picked[], targetItem: ItemKey, existingUses: number, renameCost: boolean) {
+function evaluateBuild(picks: Picked[], targetItem: ItemKey, existingUses: number, renameCost: boolean, optimizerMode: "auto" | "exact" | "fast") {
   const selected = picks
     .map((pick) => {
       const enchant = ALL.find((e) => e.name === pick.name);
@@ -583,7 +583,8 @@ function evaluateBuild(picks: Picked[], targetItem: ItemKey, existingUses: numbe
     };
   }
 
-  const useFastMode = picks.length > 8;
+  const useFastMode =
+    optimizerMode === "fast" || (optimizerMode === "auto" && picks.length > 8);
   const mergePlan = useFastMode
     ? greedyBookMerge(picks, targetItem)
     : optimizeBookMerge(picks, targetItem);
@@ -654,6 +655,7 @@ export default function App() {
   const [tracked, setTracked] = useState<Record<string, boolean>>({});
   const [existingUses, setExistingUses] = useState(0);
   const [renameCost, setRenameCost] = useState(false);
+  const [optimizerMode, setOptimizerMode] = useState<"auto" | "exact" | "fast">("auto");
 
   const itemLabel = ITEMS.find((x) => x.key === item)?.label ?? "Item";
 
@@ -668,8 +670,8 @@ export default function App() {
   );
 
   const evaluation = useMemo(
-    () => evaluateBuild(picked, item, existingUses, renameCost),
-    [picked, item, existingUses, renameCost]
+    () => evaluateBuild(picked, item, existingUses, renameCost, optimizerMode),
+    [picked, item, existingUses, renameCost, optimizerMode]
   );
 
   useEffect(() => {
@@ -721,7 +723,13 @@ export default function App() {
             <span>{ALL.length} enchants loaded</span>
             <span>Java-style anvil mechanics</span>
             <span>Custom enchants retained</span>
-            <span>{evaluation.mode === "fast" ? "Fast mode for large builds" : "Exact mode active"}</span>
+            <span>
+              {optimizerMode === "auto"
+                ? (evaluation.mode === "fast" ? "Auto → Fast mode" : "Auto → Exact mode")
+                : optimizerMode === "fast"
+                  ? "Manual Fast mode"
+                  : "Manual Exact mode"}
+            </span>
           </div>
         </div>
         <div className="hero-card">
@@ -793,6 +801,36 @@ export default function App() {
                 />
                 Add 1 level rename cost on final step
               </label>
+            </div>
+
+            <div className="summary-card" style={{ marginBottom: 0 }}>
+              <span>Optimizer mode</span>
+              <div className="mode-toggle">
+                <button
+                  type="button"
+                  className={optimizerMode === "auto" ? "mode-pill active" : "mode-pill"}
+                  onClick={() => setOptimizerMode("auto")}
+                >
+                  Auto
+                </button>
+                <button
+                  type="button"
+                  className={optimizerMode === "exact" ? "mode-pill active" : "mode-pill"}
+                  onClick={() => setOptimizerMode("exact")}
+                >
+                  Exact
+                </button>
+                <button
+                  type="button"
+                  className={optimizerMode === "fast" ? "mode-pill active" : "mode-pill"}
+                  onClick={() => setOptimizerMode("fast")}
+                >
+                  Fast
+                </button>
+              </div>
+              <div style={{ marginTop: 12, color: "#b4bce3", lineHeight: 1.6, fontSize: "0.92rem" }}>
+                Auto uses exact mode up to 8 enchants and switches to fast mode above that.
+              </div>
             </div>
           </div>
 
@@ -918,7 +956,7 @@ export default function App() {
             </div>
             {evaluation.mode === "fast" && (
               <div style={{ marginTop: 12, color: "#8cd8ff" }}>
-                Fast mode is enabled because you selected more than 8 enchants. It uses a greedy merge order to keep the site responsive.
+                Fast mode is active. It uses a greedy merge order to keep the site responsive on larger builds.
               </div>
             )}
             {evaluation.mode === "exact" && (
