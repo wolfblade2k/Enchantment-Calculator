@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Sparkles,
   Swords,
@@ -614,6 +614,7 @@ export default function App() {
   const [item, setItem] = useState<ItemKey>("sword");
   const [search, setSearch] = useState("");
   const [picked, setPicked] = useState<Picked[]>([]);
+  const [tracked, setTracked] = useState<Record<string, boolean>>({});
   const [existingUses, setExistingUses] = useState(0);
   const [renameCost, setRenameCost] = useState(false);
 
@@ -634,12 +635,22 @@ export default function App() {
     [picked, item, existingUses, renameCost]
   );
 
+  useEffect(() => {
+    setPicked([]);
+    setTracked({});
+  }, [item]);
+
   function toggleEnchant(name: string, max: number) {
     setPicked((current) => {
       const exists = current.find((entry) => entry.name === name);
-      if (exists) return current.filter((entry) => entry.name !== name);
+      if (exists) return current;
       return [...current, { name, level: max }];
     });
+    setTracked((current) => ({ ...current, [name]: true }));
+  }
+
+  function toggleTracked(name: string) {
+    setTracked((current) => ({ ...current, [name]: !current[name] }));
   }
 
   function updateLevel(name: string, level: number) {
@@ -648,8 +659,13 @@ export default function App() {
     );
   }
 
+  function removeEnchant(name: string) {
+    setPicked((current) => current.filter((entry) => entry.name !== name));
+  }
+
   function clearAll() {
     setPicked([]);
+    setTracked({});
   }
 
   return (
@@ -709,6 +725,10 @@ export default function App() {
               />
             </label>
 
+            <div className="helper-note">
+              Checkbox = visual tracker only. Use <strong>Add to build</strong> to add an enchant. Unchecking will not remove it from the build.
+            </div>
+
             <div className="summary-card" style={{ marginBottom: 0 }}>
               <span>Base item prior work count</span>
               <input
@@ -741,13 +761,21 @@ export default function App() {
           <div className="enchant-list">
             {available.map((enchant) => {
               const active = picked.some((entry) => entry.name === enchant.name);
+              const checked = !!tracked[enchant.name];
               return (
-                <button
+                <div
                   key={enchant.name}
-                  className={active ? "enchant-card active" : "enchant-card"}
-                  onClick={() => toggleEnchant(enchant.name, enchant.max)}
+                  className={active || checked ? "enchant-card active" : "enchant-card"}
                 >
                   <div className="enchant-top">
+                    <label className="track-check">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleTracked(enchant.name)}
+                      />
+                      <span className="fake-check">{checked ? "✓" : ""}</span>
+                    </label>
                     <span className="enchant-name">{enchant.name}</span>
                     <span className={enchant.source === "Vanilla" ? "tag vanilla" : "tag excellent"}>
                       {enchant.source}
@@ -757,7 +785,17 @@ export default function App() {
                     <span>Max {roman(enchant.max)}</span>
                     <span>Book mult. {getBookMultiplier(enchant)}</span>
                   </div>
-                </button>
+                  <div className="enchant-actions">
+                    <button
+                      type="button"
+                      className={active ? "mini-action added" : "mini-action"}
+                      onClick={() => toggleEnchant(enchant.name, enchant.max)}
+                      disabled={active}
+                    >
+                      {active ? "Added to build" : "Add to build"}
+                    </button>
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -793,16 +831,21 @@ export default function App() {
                     <div className="selection-title">{enchant.name}</div>
                     <div className="selection-subtitle">{enchant.source}</div>
                   </div>
-                  <select
-                    value={enchant.level}
-                    onChange={(e) => updateLevel(enchant.name, Number(e.target.value))}
-                  >
-                    {Array.from({ length: enchant.max }, (_, i) => i + 1).map((level) => (
-                      <option key={level} value={level}>
-                        {roman(level)}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="selection-actions">
+                    <select
+                      value={enchant.level}
+                      onChange={(e) => updateLevel(enchant.name, Number(e.target.value))}
+                    >
+                      {Array.from({ length: enchant.max }, (_, i) => i + 1).map((level) => (
+                        <option key={level} value={level}>
+                          {roman(level)}
+                        </option>
+                      ))}
+                    </select>
+                    <button type="button" className="mini-action danger" onClick={() => removeEnchant(enchant.name)}>
+                      Remove
+                    </button>
+                  </div>
                 </div>
               ))
             )}
