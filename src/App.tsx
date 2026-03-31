@@ -15,6 +15,7 @@ import {
   BookOpen,
   Plus,
   ChevronRight,
+  Check,
 } from "lucide-react";
 
 type ItemKey =
@@ -322,6 +323,15 @@ export default function App() {
   const anvilPlan = useMemo(() => buildAnvilOrder(itemLabel, picked), [itemLabel, picked]);
   const totalBooks = picked.length;
 
+  function handleItemChange(nextItem: ItemKey) {
+    setTargetAndReset(nextItem);
+  }
+
+  function setTargetAndReset(nextItem: ItemKey) {
+    setItem(nextItem);
+    setPicked([]);
+  }
+
   function toggleEnchant(name: string, max: number) {
     setPicked((current) => {
       const exists = current.find((entry) => entry.name === name);
@@ -372,16 +382,25 @@ export default function App() {
           </div>
 
           <div className="item-tabs">
-            {ITEMS.map((entry) => (
-              <button
-                key={entry.key}
-                className={entry.key === item ? "item-tab active" : "item-tab"}
-                onClick={() => setItem(entry.key)}
-              >
-                {entry.icon}
-                {entry.label}
-              </button>
-            ))}
+            {ITEMS.map((entry) => {
+              const activeTool = entry.key === item;
+              return (
+                <button
+                  key={entry.key}
+                  className={activeTool ? "item-tab active" : "item-tab"}
+                  onClick={() => handleItemChange(entry.key)}
+                >
+                  <span className={activeTool ? "checkbox-pill checked" : "checkbox-pill"}>
+                    {activeTool ? <Check size={14} /> : null}
+                  </span>
+                  {entry.icon}
+                  {entry.label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="switch-note">
+            Switching tools or armor pieces automatically clears selected enchantments so only compatible ones stay checked.
           </div>
 
           <label className="search-box">
@@ -403,7 +422,12 @@ export default function App() {
                   onClick={() => toggleEnchant(enchant.name, enchant.max)}
                 >
                   <div className="enchant-top">
-                    <span className="enchant-name">{enchant.name}</span>
+                    <div className="enchant-title-wrap">
+                      <span className={active ? "checkbox-pill checked" : "checkbox-pill"}>
+                        {active ? <Check size={14} /> : null}
+                      </span>
+                      <span className="enchant-name">{enchant.name}</span>
+                    </div>
                     <span className={enchant.source === "Vanilla" ? "tag vanilla" : "tag excellent"}>
                       {enchant.source}
                     </span>
