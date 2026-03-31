@@ -605,7 +605,7 @@ function evaluateBuild(picks: Picked[], targetItem: ItemKey, existingUses: numbe
 
   const baseNode: SimNode = {
     key: "base-item",
-    label: TARGET_ITEMS.find((x) => x.value === targetItem)?.label ?? "Item",
+    label: ITEMS.find((x) => x.key === targetItem)?.label ?? "Item",
     enchants: {},
     uses: existingUses,
     isBook: false,
