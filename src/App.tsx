@@ -323,15 +323,6 @@ export default function App() {
   const anvilPlan = useMemo(() => buildAnvilOrder(itemLabel, picked), [itemLabel, picked]);
   const totalBooks = picked.length;
 
-  function handleItemChange(nextItem: ItemKey) {
-    setTargetAndReset(nextItem);
-  }
-
-  function setTargetAndReset(nextItem: ItemKey) {
-    setItem(nextItem);
-    setPicked([]);
-  }
-
   function toggleEnchant(name: string, max: number) {
     setPicked((current) => {
       const exists = current.find((entry) => entry.name === name);
@@ -382,25 +373,23 @@ export default function App() {
           </div>
 
           <div className="item-tabs">
-            {ITEMS.map((entry) => {
-              const activeTool = entry.key === item;
-              return (
-                <button
-                  key={entry.key}
-                  className={activeTool ? "item-tab active" : "item-tab"}
-                  onClick={() => handleItemChange(entry.key)}
-                >
-                  <span className={activeTool ? "checkbox-pill checked" : "checkbox-pill"}>
-                    {activeTool ? <Check size={14} /> : null}
-                  </span>
-                  {entry.icon}
-                  {entry.label}
-                </button>
-              );
-            })}
-          </div>
-          <div className="switch-note">
-            Switching tools or armor pieces automatically clears selected enchantments so only compatible ones stay checked.
+            {ITEMS.map((entry) => (
+              <button
+                key={entry.key}
+                className={entry.key === item ? "item-tab active" : "item-tab"}
+                onClick={() => {
+                  setItem(entry.key);
+                  setPicked([]);
+                  setSearch("");
+                }}
+              >
+                <span className="visual-checkbox" aria-hidden="true">
+                  {entry.key === item && <Check size={14} />}
+                </span>
+                {entry.icon}
+                {entry.label}
+              </button>
+            ))}
           </div>
 
           <label className="search-box">
@@ -411,6 +400,9 @@ export default function App() {
               placeholder="Search enchantments"
             />
           </label>
+          <div className="checkbox-help">
+            Checkmarks are visual only. Remove enchants from the selected build with the remove button on the right.
+          </div>
 
           <div className="enchant-list">
             {available.map((enchant) => {
@@ -419,12 +411,14 @@ export default function App() {
                 <button
                   key={enchant.name}
                   className={active ? "enchant-card active" : "enchant-card"}
-                  onClick={() => toggleEnchant(enchant.name, enchant.max)}
+                  onClick={() => {
+                    if (!active) toggleEnchant(enchant.name, enchant.max);
+                  }}
                 >
                   <div className="enchant-top">
-                    <div className="enchant-title-wrap">
-                      <span className={active ? "checkbox-pill checked" : "checkbox-pill"}>
-                        {active ? <Check size={14} /> : null}
+                    <div className="enchant-name-wrap">
+                      <span className="visual-checkbox" aria-hidden="true">
+                        {active && <Check size={14} />}
                       </span>
                       <span className="enchant-name">{enchant.name}</span>
                     </div>
