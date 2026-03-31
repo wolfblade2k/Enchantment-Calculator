@@ -524,3 +524,72 @@ button, input, select {
   cursor: default;
   opacity: 1;
 }
+
+
+.helper-note {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(128, 162, 255, 0.14);
+  background: rgba(255,255,255,0.03);
+  color: #b4bce3;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.track-check {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.track-check input {
+  display: none;
+}
+
+.fake-check {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1px solid rgba(151, 114, 255, 0.42);
+  background: rgba(255,255,255,0.04);
+  display: grid;
+  place-items: center;
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  flex: 0 0 18px;
+}
+
+.enchant-top {
+  align-items: center;
+}
+
+.enchant-actions {
+  margin-top: 12px;
+}
+
+.mini-action {
+  border: 1px solid rgba(151, 114, 255, 0.28);
+  background: rgba(140, 86, 255, 0.12);
+  color: #f4ecff;
+  border-radius: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.mini-action.added {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.selection-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.mini-action.danger {
+  border-color: rgba(248, 113, 113, 0.28);
+  background: rgba(127, 29, 29, 0.22);
+}

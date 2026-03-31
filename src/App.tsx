@@ -325,7 +325,7 @@ export default function App() {
 
 useEffect(() => {
   setCheckedEnchants(picked.map((entry) => entry.name));
-}, [targetItem]);
+}, [item, picked]);
 
 function toggleChecked(name: string) {
   setCheckedEnchants((current) =>
@@ -338,7 +338,7 @@ function toggleChecked(name: string) {
   function toggleEnchant(name: string, max: number) {
     setPicked((current) => {
       const exists = current.find((entry) => entry.name === name);
-      if (exists) return current.filter((entry) => entry.name !== name);
+      if (exists) return current;
       return [...current, { name, level: max }];
     });
   }
@@ -347,6 +347,10 @@ function toggleChecked(name: string) {
     setPicked((current) =>
       current.map((entry) => (entry.name === name ? { ...entry, level } : entry))
     );
+  }
+
+  function removeEnchant(name: string) {
+    setPicked((current) => current.filter((entry) => entry.name !== name));
   }
 
   return (
@@ -496,16 +500,21 @@ function toggleChecked(name: string) {
                     <div className="selection-title">{enchant.name}</div>
                     <div className="selection-subtitle">{enchant.source}</div>
                   </div>
-                  <select
-                    value={enchant.level}
-                    onChange={(e) => updateLevel(enchant.name, Number(e.target.value))}
-                  >
-                    {Array.from({ length: enchant.max }, (_, i) => i + 1).map((level) => (
-                      <option key={level} value={level}>
-                        {roman(level)}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="selection-actions">
+                    <select
+                      value={enchant.level}
+                      onChange={(e) => updateLevel(enchant.name, Number(e.target.value))}
+                    >
+                      {Array.from({ length: enchant.max }, (_, i) => i + 1).map((level) => (
+                        <option key={level} value={level}>
+                          {roman(level)}
+                        </option>
+                      ))}
+                    </select>
+                    <button type="button" className="mini-action danger" onClick={() => removeEnchant(enchant.name)}>
+                      Remove
+                    </button>
+                  </div>
                 </div>
               ))
             )}
