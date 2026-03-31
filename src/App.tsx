@@ -517,6 +517,37 @@ function optimizeBookMerge(picks: Picked[], targetItem: ItemKey) {
   return solve((1 << leaves.length) - 1);
 }
 
+
+function greedyBookMerge(picks: Picked[], targetItem: ItemKey) {
+  if (!picks.length) return null;
+  const nodes = picks.map(buildLeafNode);
+  let totalCost = 0;
+
+  while (nodes.length > 1) {
+    let best: { i: number; j: number; total: number; node: SimNode } | null = null;
+
+    for (let i = 0; i < nodes.length; i += 1) {
+      for (let j = 0; j < nodes.length; j += 1) {
+        if (i === j) continue;
+        const merged = simulateCombine(nodes[i], nodes[j], targetItem, true);
+        if (!merged.valid || !merged.node) continue;
+        if (!best || merged.cost < best.total) {
+          best = { i, j, total: merged.cost, node: merged.node };
+        }
+      }
+    }
+
+    if (!best) return null;
+
+    const nextNodes = nodes.filter((_, idx) => idx !== best!.i && idx !== best!.j);
+    nextNodes.push(best.node);
+    nodes.splice(0, nodes.length, ...nextNodes);
+    totalCost += best.total;
+  }
+
+  return { totalCost, node: nodes[0] };
+}
+
 function evaluateBuild(picks: Picked[], targetItem: ItemKey, existingUses: number, renameCost: boolean) {
   const selected = picks
     .map((pick) => {
@@ -548,10 +579,14 @@ function evaluateBuild(picks: Picked[], targetItem: ItemKey, existingUses: numbe
       totalAnvilCost: 0,
       tooExpensive: false,
       maxSingleStep: 0,
+      mode: "exact" as "exact" | "fast",
     };
   }
 
-  const mergePlan = optimizeBookMerge(picks, targetItem);
+  const useFastMode = picks.length > 8;
+  const mergePlan = useFastMode
+    ? greedyBookMerge(picks, targetItem)
+    : optimizeBookMerge(picks, targetItem);
 
   if (!mergePlan) {
     return {
@@ -563,12 +598,13 @@ function evaluateBuild(picks: Picked[], targetItem: ItemKey, existingUses: numbe
       totalAnvilCost: 0,
       tooExpensive: false,
       maxSingleStep: 0,
+      mode: useFastMode ? "fast" as const : "exact" as const,
     };
   }
 
   const baseNode: SimNode = {
     key: "base-item",
-    label: ITEMS.find((x) => x.key === targetItem)?.label ?? "Item",
+    label: TARGET_ITEMS.find((x) => x.value === targetItem)?.label ?? "Item",
     enchants: {},
     uses: existingUses,
     isBook: false,
@@ -607,6 +643,7 @@ function evaluateBuild(picks: Picked[], targetItem: ItemKey, existingUses: numbe
     totalAnvilCost: mergePlan.totalCost + finalApplyCost,
     tooExpensive: maxSingleStep > 39,
     maxSingleStep,
+    mode: useFastMode ? "fast" as const : "exact" as const,
   };
 }
 
@@ -684,6 +721,7 @@ export default function App() {
             <span>{ALL.length} enchants loaded</span>
             <span>Java-style anvil mechanics</span>
             <span>Custom enchants retained</span>
+            <span>{evaluation.mode === "fast" ? "Fast mode for large builds" : "Exact mode active"}</span>
           </div>
         </div>
         <div className="hero-card">
@@ -878,6 +916,16 @@ export default function App() {
               Vanilla enchant multipliers use Minecraft wiki values where available. Custom ExcellentEnchants
               costs now come from your uploaded plugin config AnvilCost values and are converted to book-side cost with a halved-cost rule.
             </div>
+            {evaluation.mode === "fast" && (
+              <div style={{ marginTop: 12, color: "#8cd8ff" }}>
+                Fast mode is enabled because you selected more than 8 enchants. It uses a greedy merge order to keep the site responsive.
+              </div>
+            )}
+            {evaluation.mode === "exact" && (
+              <div style={{ marginTop: 12, color: "#9ff3c4" }}>
+                Exact mode is active. This checks all merge orders for the selected books.
+              </div>
+            )}
             {evaluation.tooExpensive && (
               <div style={{ marginTop: 12, color: "#ffd07f" }}>
                 Warning: at least one step is above 39 levels, so Java survival would reject it as Too Expensive.
@@ -944,9 +992,8 @@ export default function App() {
         )}
 
         <div className="footer-note">
-          The optimizer merges book groups in whichever order produces the lowest cumulative Java-style level cost,
-          then applies the final book stack to the base item. This is much closer to the Minecraft wiki mechanics
-          than the earlier weight-only planner.
+          For up to 8 enchants, the calculator uses exact Java-style merge-order optimization. Above 8 enchants,
+          it switches to a fast greedy mode so the page stays responsive while still giving a strong low-cost order.
         </div>
       </section>
     </div>
