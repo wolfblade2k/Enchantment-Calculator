@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Sparkles,
   Swords,
@@ -213,79 +213,329 @@ const ALL: Enchant[] = [
   { name: "Soulbound", source: "ExcellentEnchants", max: 1, appliesTo: ["helmet","chestplate","leggings","boots","elytra","sword","axe","pickaxe","shovel","hoe","bow","crossbow","trident","fishing_rod","mace","shears","shield"], incompatible: ["Curse of Vanishing"], kind: "utility" },
 ];
 
+
 function roman(value: number) {
   const map = ["", "I", "II", "III", "IV", "V", "VI"];
   return map[value] ?? String(value);
 }
 
-function estimateWeight(level: number) {
-  return Math.max(1, level);
+const VANILLA_BOOK_MULTIPLIER: Record<string, number> = {
+  "Protection": 1,
+  "Fire Protection": 1,
+  "Blast Protection": 2,
+  "Projectile Protection": 1,
+  "Respiration": 2,
+  "Aqua Affinity": 2,
+  "Thorns": 4,
+  "Depth Strider": 2,
+  "Frost Walker": 2,
+  "Feather Falling": 1,
+  "Soul Speed": 4,
+  "Swift Sneak": 4,
+  "Density": 2,
+  "Breach": 2,
+  "Wind Burst": 4,
+  "Sharpness": 1,
+  "Smite": 1,
+  "Bane of Arthropods": 1,
+  "Knockback": 1,
+  "Fire Aspect": 2,
+  "Looting": 2,
+  "Sweeping Edge": 2,
+  "Efficiency": 1,
+  "Silk Touch": 4,
+  "Fortune": 2,
+  "Power": 1,
+  "Punch": 2,
+  "Flame": 2,
+  "Infinity": 4,
+  "Multishot": 2,
+  "Quick Charge": 1,
+  "Piercing": 1,
+  "Impaling": 2,
+  "Loyalty": 1,
+  "Riptide": 2,
+  "Channeling": 4,
+  "Luck of the Sea": 2,
+  "Lure": 2,
+  "Unbreaking": 1,
+  "Mending": 2,
+  "Curse of Binding": 4,
+  "Curse of Vanishing": 4,
+};
+
+function getBookMultiplier(enchant: Enchant) {
+  if (enchant.source === "Vanilla") {
+    return VANILLA_BOOK_MULTIPLIER[enchant.name] ?? 2;
+  }
+  if (enchant.kind === "curse") return 4;
+  if (enchant.kind === "loot") return 2;
+  if (enchant.kind === "protection") return 2;
+  if (enchant.kind === "mobility") return 2;
+  return 1;
 }
 
-function buildAnvilOrder(itemLabel: string, picks: Picked[]) {
-  if (picks.length === 0) return { steps: [] as MergeStep[], totalCost: 0, finalBook: "" };
-  if (picks.length === 1) {
+type EnchantState = Record<string, number>;
+
+type SimNode = {
+  key: string;
+  label: string;
+  enchants: EnchantState;
+  uses: number;
+  isBook: boolean;
+  steps: MergeStep[];
+};
+
+function canApplyToItem(enchant: Enchant, item: ItemKey) {
+  return enchant.appliesTo.includes(item);
+}
+
+function hasConflictByName(aName: string, bName: string) {
+  const a = ALL.find((e) => e.name === aName);
+  const b = ALL.find((e) => e.name === bName);
+  if (!a || !b) return false;
+  return (a.incompatible ?? []).includes(b.name) || (b.incompatible ?? []).includes(a.name);
+}
+
+function priorPenalty(uses: number) {
+  return uses <= 0 ? 0 : 2 ** uses - 1;
+}
+
+function formatEnchantMap(map: EnchantState) {
+  const names = Object.entries(map)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([name, level]) => `${name} ${roman(level)}`);
+  return names.length ? names.join(" • ") : "Empty";
+}
+
+function buildLeafNode(pick: Picked): SimNode {
+  return {
+    key: pick.name,
+    label: `${pick.name} ${roman(pick.level)}`,
+    enchants: { [pick.name]: pick.level },
+    uses: 0,
+    isBook: true,
+    steps: [],
+  };
+}
+
+function simulateCombine(
+  target: SimNode,
+  sacrifice: SimNode,
+  targetItem: ItemKey,
+  forceBookResult = true
+): { valid: boolean; cost: number; node?: SimNode; reason?: string } {
+  let enchantCost = 0;
+  let transferred = 0;
+  const result: EnchantState = { ...target.enchants };
+
+  for (const [name, sacrificeLevel] of Object.entries(sacrifice.enchants)) {
+    const enchant = ALL.find((e) => e.name === name);
+    if (!enchant) continue;
+
+    if (!canApplyToItem(enchant, targetItem)) {
+      continue;
+    }
+
+    const incompatibleOnTarget = Object.keys(result).filter(
+      (other) => other !== name && hasConflictByName(name, other)
+    );
+
+    if (incompatibleOnTarget.length > 0) {
+      enchantCost += incompatibleOnTarget.length;
+      continue;
+    }
+
+    const currentLevel = result[name] ?? 0;
+    const finalLevel =
+      currentLevel === sacrificeLevel
+        ? Math.min(enchant.max, currentLevel + 1)
+        : Math.max(currentLevel, sacrificeLevel);
+
+    result[name] = finalLevel;
+    enchantCost += finalLevel * getBookMultiplier(enchant);
+    transferred += 1;
+  }
+
+  if (transferred === 0) {
+    return { valid: false, cost: Infinity, reason: "No transferable enchantments." };
+  }
+
+  const cost = priorPenalty(target.uses) + priorPenalty(sacrifice.uses) + enchantCost;
+  const resultUses = Math.max(target.uses, sacrifice.uses) + 1;
+  const resultLabel = formatEnchantMap(result);
+
+  return {
+    valid: true,
+    cost,
+    node: {
+      key: `${target.key}+${sacrifice.key}`,
+      label: resultLabel,
+      enchants: result,
+      uses: resultUses,
+      isBook: forceBookResult,
+      steps: [
+        ...target.steps,
+        ...sacrifice.steps,
+        {
+          step: 0,
+          left: target.label,
+          right: sacrifice.label,
+          result: resultLabel,
+          cost,
+        },
+      ],
+    },
+  };
+}
+
+function optimizeBookMerge(picks: Picked[], targetItem: ItemKey) {
+  if (!picks.length) return null;
+
+  const leaves = picks.map(buildLeafNode);
+  const memo = new Map<number, { totalCost: number; node: SimNode } | null>();
+
+  function solve(mask: number): { totalCost: number; node: SimNode } | null {
+    if (memo.has(mask)) return memo.get(mask)!;
+    const idxs = leaves.map((_, i) => i).filter((i) => mask & (1 << i));
+
+    if (idxs.length === 1) {
+      const out = { totalCost: 0, node: leaves[idxs[0]] };
+      memo.set(mask, out);
+      return out;
+    }
+
+    let best: { totalCost: number; node: SimNode } | null = null;
+    let sub = (mask - 1) & mask;
+
+    while (sub) {
+      const other = mask ^ sub;
+      if (sub < other) {
+        const left = solve(sub);
+        const right = solve(other);
+        if (left && right) {
+          for (const [a, b] of [
+            [left.node, right.node],
+            [right.node, left.node],
+          ] as const) {
+            const merged = simulateCombine(a, b, targetItem, true);
+            if (!merged.valid || !merged.node) continue;
+            const totalCost = left.totalCost + right.totalCost + merged.cost;
+            if (!best || totalCost < best.totalCost) {
+              best = { totalCost, node: merged.node };
+            }
+          }
+        }
+      }
+      sub = (sub - 1) & mask;
+    }
+
+    memo.set(mask, best);
+    return best;
+  }
+
+  return solve((1 << leaves.length) - 1);
+}
+
+function evaluateBuild(picks: Picked[], targetItem: ItemKey, existingUses: number, renameCost: boolean) {
+  const selected = picks
+    .map((pick) => {
+      const enchant = ALL.find((e) => e.name === pick.name);
+      return enchant ? { ...enchant, level: pick.level } : null;
+    })
+    .filter(Boolean) as (Enchant & { level: number })[];
+
+  const conflicts: string[] = [];
+  for (let i = 0; i < selected.length; i += 1) {
+    for (let j = i + 1; j < selected.length; j += 1) {
+      if (hasConflictByName(selected[i].name, selected[j].name)) {
+        conflicts.push(`${selected[i].name} conflicts with ${selected[j].name}`);
+      }
+    }
+  }
+
+  const invalidForItem = selected
+    .filter((enchant) => !canApplyToItem(enchant, targetItem))
+    .map((enchant) => `${enchant.name} cannot be applied to ${targetItem.replace("_", " ")}.`);
+
+  if (conflicts.length || invalidForItem.length) {
     return {
-      steps: [{
-        step: 1,
-        left: itemLabel,
-        right: `${picks[0].name} ${roman(picks[0].level)}`,
-        result: `${itemLabel} + ${picks[0].name} ${roman(picks[0].level)}`,
-        cost: estimateWeight(picks[0].level),
-      }],
-      totalCost: estimateWeight(picks[0].level),
-      finalBook: `${picks[0].name} ${roman(picks[0].level)}`
+      selected,
+      conflicts,
+      itemProblems: invalidForItem,
+      mergePlan: null as null | { totalCost: number; node: SimNode },
+      finalApplyCost: 0,
+      totalAnvilCost: 0,
+      tooExpensive: false,
+      maxSingleStep: 0,
     };
   }
 
-  const nodes: MergeNode[] = picks.map((pick) => ({
-    label: `${pick.name} ${roman(pick.level)}`,
-    enchants: [pick.name],
-    weight: estimateWeight(pick.level),
+  const mergePlan = optimizeBookMerge(picks, targetItem);
+
+  if (!mergePlan) {
+    return {
+      selected,
+      conflicts,
+      itemProblems: invalidForItem,
+      mergePlan: null,
+      finalApplyCost: 0,
+      totalAnvilCost: 0,
+      tooExpensive: false,
+      maxSingleStep: 0,
+    };
+  }
+
+  const baseNode: SimNode = {
+    key: "base-item",
+    label: TARGET_ITEMS.find((x) => x.value === targetItem)?.label ?? "Item",
+    enchants: {},
+    uses: existingUses,
+    isBook: false,
+    steps: [],
+  };
+
+  const finalResult = simulateCombine(baseNode, mergePlan.node, targetItem, false);
+  const finalApplyCost = (finalResult.valid ? finalResult.cost : 0) + (renameCost ? 1 : 0);
+  const allStepCosts = mergePlan.node.steps.map((s) => s.cost);
+  const maxSingleStep = Math.max(finalApplyCost, ...allStepCosts, 0);
+
+  const numberedSteps = mergePlan.node.steps.map((step, index) => ({
+    ...step,
+    step: index + 1,
   }));
 
-  const steps: MergeStep[] = [];
-  let localStep = 1;
-
-  while (nodes.length > 1) {
-    nodes.sort((a, b) => a.weight - b.weight || a.label.localeCompare(b.label));
-    const left = nodes.shift()!;
-    const right = nodes.shift()!;
-    const combined: MergeNode = {
-      label: [...left.enchants, ...right.enchants].join(" + "),
-      enchants: [...left.enchants, ...right.enchants],
-      weight: left.weight + right.weight + 1,
-    };
-
-    steps.push({
-      step: localStep++,
-      left: left.label,
-      right: right.label,
-      result: combined.label,
-      cost: combined.weight,
+  if (finalResult.valid) {
+    numberedSteps.push({
+      step: numberedSteps.length + 1,
+      left: baseNode.label,
+      right: mergePlan.node.label,
+      result: finalResult.node?.label ?? `${baseNode.label} enchanted`,
+      cost: finalApplyCost,
     });
-
-    nodes.push(combined);
   }
 
-  const finalBook = nodes[0];
-  steps.push({
-    step: localStep,
-    left: itemLabel,
-    right: finalBook.label,
-    result: `${itemLabel} enchanted`,
-    cost: finalBook.weight,
-  });
-
-  const totalCost = steps.reduce((sum, step) => sum + step.cost, 0);
-  return { steps, totalCost, finalBook: finalBook.label };
+  return {
+    selected,
+    conflicts,
+    itemProblems: invalidForItem,
+    mergePlan: {
+      totalCost: mergePlan.totalCost,
+      node: { ...mergePlan.node, steps: numberedSteps },
+    },
+    finalApplyCost,
+    totalAnvilCost: mergePlan.totalCost + finalApplyCost,
+    tooExpensive: maxSingleStep > 39,
+    maxSingleStep,
+  };
 }
 
 export default function App() {
   const [item, setItem] = useState<ItemKey>("sword");
   const [search, setSearch] = useState("");
   const [picked, setPicked] = useState<Picked[]>([]);
-  const [checkedEnchants, setCheckedEnchants] = useState<string[]>([]);
+  const [existingUses, setExistingUses] = useState(0);
+  const [renameCost, setRenameCost] = useState(false);
 
   const itemLabel = ITEMS.find((x) => x.key === item)?.label ?? "Item";
 
@@ -299,46 +549,15 @@ export default function App() {
     [item, search]
   );
 
-  const pickedDetailed = picked
-    .map((p) => {
-      const enchant = ALL.find((e) => e.name === p.name);
-      return enchant ? { ...enchant, level: p.level } : null;
-    })
-    .filter(Boolean) as (Enchant & { level: number })[];
-
-  const conflicts = useMemo(() => {
-    const list: string[] = [];
-    for (let i = 0; i < pickedDetailed.length; i++) {
-      for (let j = i + 1; j < pickedDetailed.length; j++) {
-        const a = pickedDetailed[i];
-        const b = pickedDetailed[j];
-        if (a.incompatible?.includes(b.name) || b.incompatible?.includes(a.name)) {
-          list.push(`${a.name} conflicts with ${b.name}`);
-        }
-      }
-    }
-    return list;
-  }, [pickedDetailed]);
-
-  const anvilPlan = useMemo(() => buildAnvilOrder(itemLabel, picked), [itemLabel, picked]);
-  const totalBooks = picked.length;
-
-useEffect(() => {
-  setCheckedEnchants(picked.map((entry) => entry.name));
-}, [item, picked]);
-
-function toggleChecked(name: string) {
-  setCheckedEnchants((current) =>
-    current.includes(name)
-      ? current.filter((entry) => entry !== name)
-      : [...current, name]
+  const evaluation = useMemo(
+    () => evaluateBuild(picked, item, existingUses, renameCost),
+    [picked, item, existingUses, renameCost]
   );
-}
 
   function toggleEnchant(name: string, max: number) {
     setPicked((current) => {
       const exists = current.find((entry) => entry.name === name);
-      if (exists) return current;
+      if (exists) return current.filter((entry) => entry.name !== name);
       return [...current, { name, level: max }];
     });
   }
@@ -349,8 +568,8 @@ function toggleChecked(name: string) {
     );
   }
 
-  function removeEnchant(name: string) {
-    setPicked((current) => current.filter((entry) => entry.name !== name));
+  function clearAll() {
+    setPicked([]);
   }
 
   return (
@@ -359,23 +578,22 @@ function toggleChecked(name: string) {
         <div className="hero-copy">
           <span className="eyebrow">Minecraft Enchantment Calculator</span>
           <h1>Advanced Enchantment Calculator for Vanilla & ExcellentEnchants</h1>
-		  <p style={{ opacity: 0.7, fontSize: "0.9rem" }}>
-  Inspired by WiseHosting
-</p>
+          <p style={{ opacity: 0.7, fontSize: "0.9rem" }}>Inspired by WiseHosting</p>
           <p>
-            Plan your build, check conflicts, then follow the recommended merge order
-            to keep your estimated anvil cost lower.
+            This mode follows Java anvil mechanics much more closely: prior-work penalties apply to both
+            inputs, the result keeps the higher anvil-use count plus one, and only sacrifice-side
+            enchantments contribute transfer cost.
           </p>
           <div className="hero-badges">
             <span>{ALL.length} enchants loaded</span>
-            <span>Conflict Checker</span>
-            <span>Anvil Order Planner</span>
+            <span>Java-style anvil mechanics</span>
+            <span>Custom enchants retained</span>
           </div>
         </div>
         <div className="hero-card">
           <div className="stat"><strong>{available.length}</strong><span>Available for item</span></div>
-          <div className="stat"><strong>{picked.length}</strong><span>Selected enchants</span></div>
-          <div className="stat"><strong>{anvilPlan.totalCost}</strong><span>Estimated total cost</span></div>
+          <div className="stat"><strong>{picked.length}</strong><span>Selected books</span></div>
+          <div className="stat"><strong>{evaluation.totalAnvilCost}</strong><span>Total estimated cost</span></div>
         </div>
       </div>
 
@@ -401,73 +619,68 @@ function toggleChecked(name: string) {
             ))}
           </div>
 
-          <label className="search-box">
-            <Search size={16} />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search enchantments"
-            />
-          </label>
+          <div style={{ display: "grid", gap: 12, marginBottom: 16 }}>
+            <label className="search-box">
+              <Search size={16} />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search enchantments"
+              />
+            </label>
 
-<div className="helper-note">
-  Checkboxes are only for tracking what you already looked at or added. Use <strong>Add to build</strong> to put an enchant into the selected build.
-</div>
+            <div className="summary-card" style={{ marginBottom: 0 }}>
+              <span>Base item prior work count</span>
+              <input
+                type="number"
+                min={0}
+                max={10}
+                value={existingUses}
+                onChange={(e) => setExistingUses(Math.max(0, Math.min(10, Number(e.target.value) || 0)))}
+                style={{
+                  width: "100%",
+                  marginTop: 10,
+                  borderRadius: 12,
+                  border: "1px solid rgba(128, 162, 255, 0.18)",
+                  background: "#111533",
+                  color: "white",
+                  padding: "10px 12px",
+                }}
+              />
+              <label style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12, color: "#dbe2ff" }}>
+                <input
+                  type="checkbox"
+                  checked={renameCost}
+                  onChange={(e) => setRenameCost(e.target.checked)}
+                />
+                Add 1 level rename cost on final step
+              </label>
+            </div>
+          </div>
 
-<div className="enchant-list">
-  {available.map((enchant) => {
-    const added = picked.some((entry) => entry.name === enchant.name);
-    const checked = checkedEnchants.includes(enchant.name);
-    return (
-      <div
-        key={enchant.name}
-        className={added ? "enchant-card active" : "enchant-card"}
-      >
-        <div className="enchant-top">
-          <label
-            className="track-check"
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleChecked(enchant.name);
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={checked}
-              onChange={() => toggleChecked(enchant.name)}
-            />
-            <span className="fake-check" aria-hidden="true">{checked ? "✓" : ""}</span>
-          </label>
-          <span className="enchant-name">{enchant.name}</span>
-          <span className={enchant.source === "Vanilla" ? "tag vanilla" : "tag excellent"}>
-            {enchant.source}
-          </span>
-        </div>
-        <div className="enchant-meta">
-          <span>Max {roman(enchant.max)}</span>
-          <span>{enchant.kind}</span>
-        </div>
-        <div className="enchant-actions">
-          <button
-            type="button"
-            className={added ? "mini-action added" : "mini-action"}
-            onClick={() => {
-              if (!added) {
-                toggleEnchant(enchant.name, enchant.max);
-                setCheckedEnchants((current) =>
-                  current.includes(enchant.name) ? current : [...current, enchant.name]
-                );
-              }
-            }}
-            disabled={added}
-          >
-            {added ? "Added" : "Add to build"}
-          </button>
-        </div>
-      </div>
-    );
-  })}
-</div>
+          <div className="enchant-list">
+            {available.map((enchant) => {
+              const active = picked.some((entry) => entry.name === enchant.name);
+              return (
+                <button
+                  key={enchant.name}
+                  className={active ? "enchant-card active" : "enchant-card"}
+                  onClick={() => toggleEnchant(enchant.name, enchant.max)}
+                >
+                  <div className="enchant-top">
+                    <span className="enchant-name">{enchant.name}</span>
+                    <span className={enchant.source === "Vanilla" ? "tag vanilla" : "tag excellent"}>
+                      {enchant.source}
+                    </span>
+                  </div>
+                  <div className="enchant-meta">
+                    <span>Max {roman(enchant.max)}</span>
+                    <span>Book mult. {getBookMultiplier(enchant)}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </section>
 
         <section className="right-panel panel">
@@ -481,64 +694,76 @@ function toggleChecked(name: string) {
 
           <div className="summary-grid">
             <div className="summary-card">
-              <span>Enchantments</span>
-              <strong>{totalBooks}</strong>
+              <span>Book merge cost</span>
+              <strong>{evaluation.mergePlan?.totalCost ?? 0}</strong>
             </div>
             <div className="summary-card">
-              <span>Estimated total cost</span>
-              <strong>{anvilPlan.totalCost}</strong>
+              <span>Final apply cost</span>
+              <strong>{evaluation.finalApplyCost}</strong>
             </div>
           </div>
 
           <div className="selection-list">
-            {pickedDetailed.length === 0 ? (
-              <div className="empty-state">Pick enchantments from the left to build your setup.</div>
+            {evaluation.selected.length === 0 ? (
+              <div className="empty-state">Pick enchanted books from the left to build your setup.</div>
             ) : (
-              pickedDetailed.map((enchant) => (
+              evaluation.selected.map((enchant) => (
                 <div key={enchant.name} className="selection-row">
                   <div>
                     <div className="selection-title">{enchant.name}</div>
                     <div className="selection-subtitle">{enchant.source}</div>
                   </div>
-                  <div className="selection-actions">
-                    <select
-                      value={enchant.level}
-                      onChange={(e) => updateLevel(enchant.name, Number(e.target.value))}
-                    >
-                      {Array.from({ length: enchant.max }, (_, i) => i + 1).map((level) => (
-                        <option key={level} value={level}>
-                          {roman(level)}
-                        </option>
-                      ))}
-                    </select>
-                    <button type="button" className="mini-action danger" onClick={() => removeEnchant(enchant.name)}>
-                      Remove
-                    </button>
-                  </div>
+                  <select
+                    value={enchant.level}
+                    onChange={(e) => updateLevel(enchant.name, Number(e.target.value))}
+                  >
+                    {Array.from({ length: enchant.max }, (_, i) => i + 1).map((level) => (
+                      <option key={level} value={level}>
+                        {roman(level)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               ))
             )}
           </div>
 
           <div className="status-card">
-            {conflicts.length === 0 ? (
+            {evaluation.conflicts.length === 0 && evaluation.itemProblems.length === 0 ? (
               <div className="ok-line">
                 <CheckCircle2 size={18} />
-                No incompatibility conflicts found.
+                No conflicts for this item.
               </div>
             ) : (
               <div className="warn-wrap">
                 <div className="warn-line">
                   <AlertTriangle size={18} />
-                  Conflicts detected
+                  Build needs changes
                 </div>
                 <ul>
-                  {conflicts.map((issue) => (
+                  {[...evaluation.itemProblems, ...evaluation.conflicts].map((issue) => (
                     <li key={issue}>{issue}</li>
                   ))}
                 </ul>
               </div>
             )}
+          </div>
+
+          <div className="summary-card" style={{ marginTop: 16 }}>
+            <span>Notes about mechanics mode</span>
+            <div style={{ color: "#dbe2ff", lineHeight: 1.7 }}>
+              Vanilla enchant multipliers use Minecraft wiki values where available. Custom ExcellentEnchants
+              multipliers are estimated so the planner can keep them in the same optimizer.
+            </div>
+            {evaluation.tooExpensive && (
+              <div style={{ marginTop: 12, color: "#ffd07f" }}>
+                Warning: at least one step is above 39 levels, so Java survival would reject it as Too Expensive.
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
+            <button className="item-tab" onClick={clearAll}>Clear books</button>
           </div>
         </section>
       </div>
@@ -547,16 +772,18 @@ function toggleChecked(name: string) {
         <div className="panel-header">
           <div>
             <div className="panel-kicker">Anvil order</div>
-            <h2>Recommended lowest-cost merge flow</h2>
+            <h2>Java-style lowest-cost merge flow</h2>
           </div>
           <Hammer size={18} />
         </div>
 
-        {picked.length === 0 ? (
-          <div className="empty-state">Add some enchantments first, then the anvil order will appear here.</div>
+        {!evaluation.mergePlan ? (
+          <div className="empty-state">
+            Add valid enchantments first. The optimizer only runs when the selected books are compatible with the chosen item.
+          </div>
         ) : (
           <div className="anvil-steps">
-            {anvilPlan.steps.map((step) => {
+            {evaluation.mergePlan.node.steps.map((step) => {
               const finalApply = step.left === itemLabel;
               return (
                 <div className="anvil-step" key={step.step}>
@@ -594,8 +821,9 @@ function toggleChecked(name: string) {
         )}
 
         <div className="footer-note">
-          This planner uses a lightweight merge heuristic: it combines the smallest book groups first,
-          which usually lowers total work cost. It is an estimate, not a perfect simulation of every server setup.
+          The optimizer merges book groups in whichever order produces the lowest cumulative Java-style level cost,
+          then applies the final book stack to the base item. This is much closer to the Minecraft wiki mechanics
+          than the earlier weight-only planner.
         </div>
       </section>
     </div>
