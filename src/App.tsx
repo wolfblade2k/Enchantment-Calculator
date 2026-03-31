@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Sparkles,
   Swords,
@@ -15,7 +15,6 @@ import {
   BookOpen,
   Plus,
   ChevronRight,
-  Check,
 } from "lucide-react";
 
 type ItemKey =
@@ -286,6 +285,7 @@ export default function App() {
   const [item, setItem] = useState<ItemKey>("sword");
   const [search, setSearch] = useState("");
   const [picked, setPicked] = useState<Picked[]>([]);
+  const [checkedEnchants, setCheckedEnchants] = useState<string[]>([]);
 
   const itemLabel = ITEMS.find((x) => x.key === item)?.label ?? "Item";
 
@@ -322,6 +322,18 @@ export default function App() {
 
   const anvilPlan = useMemo(() => buildAnvilOrder(itemLabel, picked), [itemLabel, picked]);
   const totalBooks = picked.length;
+
+useEffect(() => {
+  setCheckedEnchants(picked.map((entry) => entry.name));
+}, [targetItem]);
+
+function toggleChecked(name: string) {
+  setCheckedEnchants((current) =>
+    current.includes(name)
+      ? current.filter((entry) => entry !== name)
+      : [...current, name]
+  );
+}
 
   function toggleEnchant(name: string, max: number) {
     setPicked((current) => {
@@ -377,15 +389,8 @@ export default function App() {
               <button
                 key={entry.key}
                 className={entry.key === item ? "item-tab active" : "item-tab"}
-                onClick={() => {
-                  setItem(entry.key);
-                  setPicked([]);
-                  setSearch("");
-                }}
+                onClick={() => setItem(entry.key)}
               >
-                <span className="visual-checkbox" aria-hidden="true">
-                  {entry.key === item && <Check size={14} />}
-                </span>
                 {entry.icon}
                 {entry.label}
               </button>
@@ -400,40 +405,65 @@ export default function App() {
               placeholder="Search enchantments"
             />
           </label>
-          <div className="checkbox-help">
-            Checkmarks are visual only. Remove enchants from the selected build with the remove button on the right.
-          </div>
 
-          <div className="enchant-list">
-            {available.map((enchant) => {
-              const active = picked.some((entry) => entry.name === enchant.name);
-              return (
-                <button
-                  key={enchant.name}
-                  className={active ? "enchant-card active" : "enchant-card"}
-                  onClick={() => {
-                    if (!active) toggleEnchant(enchant.name, enchant.max);
-                  }}
-                >
-                  <div className="enchant-top">
-                    <div className="enchant-name-wrap">
-                      <span className="visual-checkbox" aria-hidden="true">
-                        {active && <Check size={14} />}
-                      </span>
-                      <span className="enchant-name">{enchant.name}</span>
-                    </div>
-                    <span className={enchant.source === "Vanilla" ? "tag vanilla" : "tag excellent"}>
-                      {enchant.source}
-                    </span>
-                  </div>
-                  <div className="enchant-meta">
-                    <span>Max {roman(enchant.max)}</span>
-                    <span>{enchant.kind}</span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+<div className="helper-note">
+  Checkboxes are only for tracking what you already looked at or added. Use <strong>Add to build</strong> to put an enchant into the selected build.
+</div>
+
+<div className="enchant-list">
+  {available.map((enchant) => {
+    const added = picked.some((entry) => entry.name === enchant.name);
+    const checked = checkedEnchants.includes(enchant.name);
+    return (
+      <div
+        key={enchant.name}
+        className={added ? "enchant-card active" : "enchant-card"}
+      >
+        <div className="enchant-top">
+          <label
+            className="track-check"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleChecked(enchant.name);
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={checked}
+              onChange={() => toggleChecked(enchant.name)}
+            />
+            <span className="fake-check" aria-hidden="true">{checked ? "✓" : ""}</span>
+          </label>
+          <span className="enchant-name">{enchant.name}</span>
+          <span className={enchant.source === "Vanilla" ? "tag vanilla" : "tag excellent"}>
+            {enchant.source}
+          </span>
+        </div>
+        <div className="enchant-meta">
+          <span>Max {roman(enchant.max)}</span>
+          <span>{enchant.kind}</span>
+        </div>
+        <div className="enchant-actions">
+          <button
+            type="button"
+            className={added ? "mini-action added" : "mini-action"}
+            onClick={() => {
+              if (!added) {
+                toggleEnchant(enchant.name, enchant.max);
+                setCheckedEnchants((current) =>
+                  current.includes(enchant.name) ? current : [...current, enchant.name]
+                );
+              }
+            }}
+            disabled={added}
+          >
+            {added ? "Added" : "Add to build"}
+          </button>
+        </div>
+      </div>
+    );
+  })}
+</div>
         </section>
 
         <section className="right-panel panel">
