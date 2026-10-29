@@ -1,6 +1,6 @@
 # ExcellentEnchants Calculator
 
-A GitHub-ready React + Vite project that includes:
+
 
 - Vanilla enchantments
 - ExcellentEnchants enchantments
